@@ -1,0 +1,9 @@
+import type { Metadata } from "next";
+import { AdminApp } from "@/features/admin/AdminApp";
+export const metadata: Metadata = {
+  title: "Administração",
+  robots: { index: false, follow: false },
+};
+export default function AdminPage() {
+  return <AdminApp />;
+}
