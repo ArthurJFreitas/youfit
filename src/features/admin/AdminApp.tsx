@@ -647,6 +647,7 @@ export function AdminApp() {
                   <p key={i.id}>
                     <span>
                       {i.quantity}× {i.product_name}
+                      {i.customer_notes ? ` · ${i.customer_notes}` : ""}
                     </span>
                     <strong>{formatBRL(i.line_total_cents)}</strong>
                   </p>

@@ -17,6 +17,17 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://youfit-salada.vercel.app"),
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "YouFit",
+    title: "YouFit — saladas frescas na sua porta",
+    description:
+      "Salada + Coca-Cola lata a partir de R$ 25,90. Escolha os dias da semana e receba em casa.",
+    images: [{ url: "/images/og.jpg", width: 1200, height: 630, alt: "Salada YouFit" }],
+  },
+  twitter: { card: "summary_large_image" },
   title: {
     default: "YouFit — saladas frescas na sua porta",
     template: "%s | YouFit",

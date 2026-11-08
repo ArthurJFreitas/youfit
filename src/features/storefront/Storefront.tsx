@@ -26,6 +26,14 @@ import {
 import { YouFitLogo } from "@/components/brand/YouFitLogo";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import {
+  ADDITIONS,
+  DRINKS,
+  TOPPINGS,
+  buildNotes,
+  parseCustomization,
+  toggle,
+} from "@/features/ordering/customization";
 import { previewOrder } from "@/features/ordering/cart";
 import { formatBRL } from "@/features/ordering/money";
 import { validateOrderDraft } from "@/features/ordering/validation";
@@ -51,6 +59,7 @@ const weekdays = [
   "sexta",
   "sábado",
 ];
+
 function dayName(date: string) {
   return weekdays[new Date(date + "T12:00:00Z").getUTCDay()];
 }
@@ -74,6 +83,8 @@ export function Storefront({
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<OrderDraft>(emptyDraft);
   const [activeDay, setActiveDay] = useState("");
+  const [cep, setCep] = useState("");
+  const [cutlery, setCutlery] = useState(true);
   const [comboId, setComboId] = useState("");
   const [category, setCategory] = useState("salad");
   const [checkout, setCheckout] = useState(false);
@@ -142,6 +153,13 @@ export function Storefront({
     0,
   );
 
+  const dayIndex = (id: string) =>
+    data?.deliveryDays.findIndex((d) => d.id === id) ?? 0;
+  const chosenDays = [...deliveries].sort(
+    (a, b) => dayIndex(a.deliveryDayId) - dayIndex(b.deliveryDayId),
+  );
+  const firstEmptyDay = chosenDays.find((d) => !d.items.length)?.deliveryDayId;
+
   function selectDay(id: string) {
     setCheckout(false);
     setError("");
@@ -153,7 +171,8 @@ export function Storefront({
       ...prev,
       deliveries: [...prev.deliveries, { deliveryDayId: id, items: [] }],
     }));
-    setActiveDay(id);
+    // Fill the week in order: keep building the earliest day still without a meal.
+    setActiveDay(firstEmptyDay ?? id);
   }
   function removeDay(id: string) {
     const next = deliveries.filter((d) => d.deliveryDayId !== id);
@@ -192,6 +211,7 @@ export function Storefront({
                     {
                       productId,
                       quantity,
+                      ...(product?.category === "salad" ? { notes: buildNotes(parseCustomization()) } : {}),
                       ...(product?.category === "salad" && itemCombo
                         ? { comboId: itemCombo }
                         : {}),
@@ -201,22 +221,82 @@ export function Storefront({
       }),
     }));
   }
+  // shortcut: one customization per cart line, even with quantity > 1; split lines if customers ask.
+  function customizeItem(
+    dayId: string,
+    productId: string,
+    patch: Partial<ReturnType<typeof parseCustomization>>,
+  ) {
+    setDraft((prev) => ({
+      ...prev,
+      deliveries: prev.deliveries.map((d) =>
+        d.deliveryDayId !== dayId
+          ? d
+          : {
+              ...d,
+              items: d.items.map((i) =>
+                i.productId === productId
+                  ? { ...i, notes: buildNotes({ ...parseCustomization(i.notes), ...patch }) }
+                  : i,
+              ),
+            },
+      ),
+    }));
+  }
+  async function lookupCep(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    setCep(digits.replace(/^(\d{5})(\d)/, "$1-$2"));
+    if (digits.length !== 8) return;
+    try {
+      const json = await (await fetch(`https://viacep.com.br/ws/${digits}/json/`)).json();
+      if (json.erro) {
+        setError("CEP não encontrado. Confira os números ou preencha o endereço à mão.");
+        return;
+      }
+      setError("");
+      setDraft((prev) => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          street: json.logradouro || prev.address.street,
+          neighborhood: json.bairro || prev.address.neighborhood,
+        },
+      }));
+      document.getElementById("number")?.focus();
+    } catch {
+      /* ViaCEP offline: the customer still types the address */
+    }
+  }
   function chooseCombo(id: string) {
     const nextId = comboId === id ? "" : id;
     const combo = data?.combos.find((c) => c.id === nextId);
     setComboId(nextId);
+    // Picking a combo pre-selects the first available days it needs.
+    const autoDays = (data?.deliveryDays ?? [])
+      .filter(
+        (day) =>
+          day.enabled &&
+          (day.capacity === null || day.reservedQuantity < day.capacity) &&
+          !deliveries.some((d) => d.deliveryDayId === day.id),
+      )
+      .slice(0, Math.max(0, (combo?.minimumDeliveryCount ?? 0) - deliveries.length))
+      .map((day) => ({ deliveryDayId: day.id, items: [] }));
     setDraft((prev) => ({
       ...prev,
-      deliveries: prev.deliveries.map((d) => ({
-        ...d,
-        items: d.items.map((i) => ({
-          ...i,
-          comboId: combo?.eligibleProductIds.includes(i.productId)
-            ? nextId
-            : undefined,
+      deliveries: [
+        ...prev.deliveries.map((d) => ({
+          ...d,
+          items: d.items.map((i) => ({
+            ...i,
+            comboId: combo?.eligibleProductIds.includes(i.productId)
+              ? nextId
+              : undefined,
+          })),
         })),
-      })),
+        ...autoDays,
+      ],
     }));
+    if (autoDays.length) setActiveDay(firstEmptyDay ?? autoDays[0].deliveryDayId);
     document
       .getElementById("delivery-days")
       ?.scrollIntoView({ behavior: "smooth" });
@@ -236,7 +316,12 @@ export function Storefront({
     if (inFlight.current || !data || !acceptingOrders) return;
     setError("");
     try {
-      const valid = validateOrderDraft(draft);
+      const valid = validateOrderDraft({
+        ...draft,
+        notes: [`Talher: ${cutlery ? "sim" : "não"}`, draft.notes]
+          .filter(Boolean)
+          .join(" | "),
+      });
       previewOrder(valid, data);
       inFlight.current = true;
       setBusy(true);
@@ -245,7 +330,11 @@ export function Storefront({
         idempotency.current || (idempotency.current = crypto.randomUUID()),
       );
       setReceipt(order);
-      localStorage.removeItem("youfit-draft-v1");
+      // keep who/where for the next order, drop the items
+      localStorage.setItem(
+        "youfit-draft-v1",
+        JSON.stringify({ draft: { ...emptyDraft, customer: valid.customer, address: valid.address } }),
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       if (e instanceof Error && e.message.includes('indisponível') && !initialData) {
@@ -293,7 +382,16 @@ export function Storefront({
             <a href="#combos">Combos da semana</a>
             <a href="#como-funciona">Como funciona</a>
           </nav>
-          <a className="header-bag" href="#pedido">
+          <a
+            className="header-bag"
+            href="#pedido"
+            onClick={(e) => {
+              // empty cart on mobile lands on a dead end; send them to pick a day instead
+              if (count) return;
+              e.preventDefault();
+              document.getElementById("cardapio")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
             <ShoppingBag size={19} />
             <span>Meu pedido</span>
             <b>{count}</b>
@@ -574,6 +672,53 @@ export function Storefront({
                         </p>
                       </div>
                     </div>
+                    {deliveries.length > 1 && (
+                      <div
+                        className="menu-tabs day-tabs"
+                        role="group"
+                        aria-label="Dia da entrega"
+                      >
+                        {chosenDays.map((d) => {
+                          const day = data.deliveryDays.find(
+                            (x) => x.id === d.deliveryDayId,
+                          );
+                          return (
+                            <button
+                              key={d.deliveryDayId}
+                              className={activeDay === d.deliveryDayId ? "active" : ""}
+                              aria-pressed={activeDay === d.deliveryDayId}
+                              onClick={() => setActiveDay(d.deliveryDayId)}
+                            >
+                              {day ? `${dayName(day.date).slice(0, 3)} ${day.date.slice(8, 10)}` : "?"}
+                              {d.items.length ? <Check size={12} /> : null}
+                            </button>
+                          );
+                        })}
+                        {selected?.items.length && firstEmptyDay ? (
+                          <>
+                            <button
+                              className="day-tabs-next"
+                              onClick={() =>
+                                setDraft((prev) => ({
+                                  ...prev,
+                                  deliveries: prev.deliveries.map((d) =>
+                                    d.items.length ? d : { ...d, items: selected.items },
+                                  ),
+                                }))
+                              }
+                            >
+                              Repetir em todos os dias
+                            </button>
+                            <button
+                              className="day-tabs-next"
+                              onClick={() => setActiveDay(firstEmptyDay)}
+                            >
+                              Próximo dia <ChevronRight size={12} />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    )}
                     <div
                       className="menu-tabs"
                       role="group"
@@ -761,6 +906,69 @@ export function Storefront({
                                   (product?.priceCents || 0) * item.quantity,
                                 )}
                               </strong>
+                              {product?.category === "salad" && (() => {
+                                const c = parseCustomization(item.notes);
+                                const set = (patch: Partial<typeof c>) =>
+                                  customizeItem(delivery.deliveryDayId, item.productId, patch);
+                                return (
+                                  <div className="customize">
+                                    <div
+                                      className="drink-picker"
+                                      role="group"
+                                      aria-label={`Bebida de ${product.name}`}
+                                    >
+                                      {DRINKS.map((drink) => (
+                                        <button
+                                          key={drink.name}
+                                          type="button"
+                                          aria-pressed={c.drink === drink.name}
+                                          className={c.drink === drink.name ? "active" : ""}
+                                          onClick={() => set({ drink: drink.name })}
+                                        >
+                                          <Image src={drink.image} alt="" width={28} height={36} />
+                                          {drink.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <details className="toppings">
+                                      <summary>
+                                        Personalizar ingredientes
+                                        {c.without.length || c.with.length
+                                          ? ` (${c.without.length + c.with.length})`
+                                          : ""}
+                                      </summary>
+                                      <p>Desmarque o que você não quer:</p>
+                                      <div className="chips" role="group" aria-label="Ingredientes">
+                                        {TOPPINGS.map((t) => (
+                                          <button
+                                            key={t}
+                                            type="button"
+                                            aria-pressed={!c.without.includes(t)}
+                                            className={c.without.includes(t) ? "" : "active"}
+                                            onClick={() => set({ without: toggle(c.without, t) })}
+                                          >
+                                            {t}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      <p>Adicionais (grátis):</p>
+                                      <div className="chips" role="group" aria-label="Adicionais">
+                                        {ADDITIONS.map((a) => (
+                                          <button
+                                            key={a}
+                                            type="button"
+                                            aria-pressed={c.with.includes(a)}
+                                            className={c.with.includes(a) ? "active" : ""}
+                                            onClick={() => set({ with: toggle(c.with, a) })}
+                                          >
+                                            + {a}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </details>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -877,6 +1085,17 @@ export function Storefront({
                       }
                     />
                   </Field>
+                  <Field htmlFor="cep" label="CEP" optional>
+                    <input
+                      id="cep"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      placeholder="00000-000"
+                      maxLength={9}
+                      value={cep}
+                      onChange={(e) => lookupCep(e.target.value)}
+                    />
+                  </Field>
                   {[
                     {
                       key: "street",
@@ -927,10 +1146,31 @@ export function Storefront({
                       />
                     </Field>
                   ))}
+                  <fieldset className="cutlery">
+                    <legend>Precisa de talher?</legend>
+                    <label>
+                      <input
+                        type="radio"
+                        name="cutlery"
+                        checked={cutlery}
+                        onChange={() => setCutlery(true)}
+                      />
+                      Sim, por favor
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="cutlery"
+                        checked={!cutlery}
+                        onChange={() => setCutlery(false)}
+                      />
+                      Não precisa
+                    </label>
+                  </fieldset>
                   <Field htmlFor="notes" label="Alguma observação?" optional>
                     <textarea
                       id="notes"
-                      maxLength={500}
+                      maxLength={480}
                       placeholder="Alergias, orientações para entrega…"
                       value={draft.notes || ""}
                       onChange={(e) =>
