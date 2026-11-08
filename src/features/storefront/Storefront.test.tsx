@@ -56,3 +56,13 @@ describe("repeat salad across days", () => {
     expect(document.querySelectorAll(".day-tabs button svg").length).toBe(5);
   });
 });
+
+describe("combos vs open days", () => {
+  it("hides a combo that needs more delivery days than are open", () => {
+    const data = createDemoStorefrontData(new Date("2026-11-07T12:00:00Z"));
+    const threeDays = { ...data, deliveryDays: data.deliveryDays.slice(0, 3) };
+    render(<Storefront initialData={threeDays} submitOrder={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /trio da semana/i })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /semana youfit/i })).toBeNull();
+  });
+});

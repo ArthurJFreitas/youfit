@@ -139,6 +139,13 @@ export function Storefront({
   const deliveries = draft.deliveries;
   const selected = deliveries.find((d) => d.deliveryDayId === activeDay);
   const chosenCombo = data?.combos.find((c) => c.id === comboId);
+  const openDayCount = (data?.deliveryDays ?? []).filter(
+    (d) => d.enabled && (d.capacity === null || d.reservedQuantity < d.capacity),
+  ).length;
+  // A combo that needs more days than are open this week can never be completed.
+  const offeredCombos = (data?.combos ?? []).filter(
+    (c) => c.minimumDeliveryCount <= openDayCount,
+  );
   let preview: ReturnType<typeof previewOrder> | undefined;
   let cartWarning = "";
   if (data && deliveries.length) {
@@ -629,7 +636,7 @@ export function Storefront({
                       <h3>Uma semana mais leve. E mais em conta.</h3>
                     </div>
                     <div className="combo-grid">
-                      {data.combos.map((combo, index) => (
+                      {offeredCombos.map((combo, index) => (
                         <button
                           key={combo.id}
                           onClick={() => chooseCombo(combo.id)}
