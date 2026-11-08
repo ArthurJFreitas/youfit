@@ -1014,6 +1014,7 @@ function Editor({
                         ["protein", "Proteína"],
                         ["extra", "Extra"],
                         ["dressing", "Molho"],
+                        ["drink", "Bebida"],
                       ].map(([k, v]) => (
                         <option key={k} value={k}>
                           {v}

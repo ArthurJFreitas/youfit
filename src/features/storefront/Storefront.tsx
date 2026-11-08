@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Clock3,
   Copy,
+  CupSoda,
   Leaf,
   LoaderCircle,
   MapPin,
@@ -28,7 +29,6 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import {
   ADDITIONS,
-  DRINKS,
   TOPPINGS,
   buildNotes,
   parseCustomization,
@@ -211,7 +211,6 @@ export function Storefront({
                     {
                       productId,
                       quantity,
-                      ...(product?.category === "salad" ? { notes: buildNotes(parseCustomization()) } : {}),
                       ...(product?.category === "salad" && itemCombo
                         ? { comboId: itemCombo }
                         : {}),
@@ -740,6 +739,11 @@ export function Storefront({
                           name: "Extras & molhos",
                           icon: <Leaf size={16} />,
                         },
+                        {
+                          id: "drink",
+                          name: "Bebidas",
+                          icon: <CupSoda size={16} />,
+                        },
                       ].map((c) => (
                         <button
                           key={c.id}
@@ -763,7 +767,7 @@ export function Storefront({
                               className={`product-card product-card--${index % 4}`}
                               key={p.id}
                             >
-                              {p.category === "salad" ? (
+                              {p.category === "salad" || p.imagePath ? (
                                 <div className="product-photo">
                                   <Image
                                     src={
@@ -775,14 +779,16 @@ export function Storefront({
                                     sizes="(max-width: 700px) 90vw, 30vw"
                                     className={`salad-photo salad-photo--${index % 4}`}
                                   />
-                                  {index === 0 && (
+                                  {index === 0 && p.category === "salad" && (
                                     <span className="product-badge">
                                       O queridinho
                                     </span>
                                   )}
-                                  <span className="product-weight">
-                                    Refeição completa
-                                  </span>
+                                  {p.category === "salad" && (
+                                    <span className="product-weight">
+                                      Refeição completa
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="extra-icon">
@@ -912,24 +918,6 @@ export function Storefront({
                                   customizeItem(delivery.deliveryDayId, item.productId, patch);
                                 return (
                                   <div className="customize">
-                                    <div
-                                      className="drink-picker"
-                                      role="group"
-                                      aria-label={`Bebida de ${product.name}`}
-                                    >
-                                      {DRINKS.map((drink) => (
-                                        <button
-                                          key={drink.name}
-                                          type="button"
-                                          aria-pressed={c.drink === drink.name}
-                                          className={c.drink === drink.name ? "active" : ""}
-                                          onClick={() => set({ drink: drink.name })}
-                                        >
-                                          <Image src={drink.image} alt="" width={28} height={36} />
-                                          {drink.name}
-                                        </button>
-                                      ))}
-                                    </div>
                                     <details className="toppings">
                                       <summary>
                                         Personalizar ingredientes

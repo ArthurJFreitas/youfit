@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     siteName: "YouFit",
     title: "YouFit — saladas frescas na sua porta",
     description:
-      "Salada + Coca-Cola lata a partir de R$ 25,90. Escolha os dias da semana e receba em casa.",
+      "Saladas completas a partir de R$ 20,99, bebida opcional. Escolha os dias da semana e receba em casa.",
     images: [{ url: "/images/og.jpg", width: 1200, height: 630, alt: "Salada YouFit" }],
   },
   twitter: { card: "summary_large_image" },

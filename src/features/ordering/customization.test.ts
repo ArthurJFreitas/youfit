@@ -2,23 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildNotes, parseCustomization, toggle } from "./customization";
 
 describe("salad customization notes", () => {
-  it("round-trips drink, removed toppings and additions", () => {
-    const notes = buildNotes({
-      drink: "Coca-Cola Zero",
-      without: ["cebola roxa", "azeitona"],
-      with: ["limão"],
-    });
-    expect(notes).toBe("Bebida: Coca-Cola Zero | Sem: cebola roxa, azeitona | Com: limão");
+  it("round-trips removed toppings and additions", () => {
+    const notes = buildNotes({ without: ["cebola roxa", "azeitona"], with: ["limão"] });
+    expect(notes).toBe("Sem: cebola roxa, azeitona | Com: limão");
     expect(parseCustomization(notes)).toEqual({
-      drink: "Coca-Cola Zero",
       without: ["cebola roxa", "azeitona"],
       with: ["limão"],
     });
   });
 
-  it("defaults to the first drink and nothing removed", () => {
-    expect(parseCustomization("")).toEqual({ drink: "Coca-Cola", without: [], with: [] });
-    expect(buildNotes(parseCustomization(undefined))).toBe("Bebida: Coca-Cola");
+  it("is empty when nothing changed", () => {
+    expect(parseCustomization(undefined)).toEqual({ without: [], with: [] });
+    expect(buildNotes(parseCustomization(""))).toBe("");
   });
 
   it("toggles a value in and out", () => {

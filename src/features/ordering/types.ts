@@ -1,4 +1,4 @@
-export type ProductCategory = "salad" | "protein" | "extra" | "dressing";
+export type ProductCategory = "salad" | "protein" | "extra" | "dressing" | "drink";
 
 export type DiscountType = "percentage" | "fixed";
 

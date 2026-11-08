@@ -528,7 +528,7 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "cancelled";
-      product_category: "salad" | "protein" | "extra" | "dressing";
+      product_category: "salad" | "protein" | "extra" | "dressing" | "drink";
       profile_role: "customer" | "admin";
     };
     CompositeTypes: {
