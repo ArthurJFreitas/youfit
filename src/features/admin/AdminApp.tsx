@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
+import { productionLines } from "./production";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -60,6 +61,7 @@ export function AdminApp() {
   const [editing, setEditing] = useState<{ table: string; row: Row }>();
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [dayFilter, setDayFilter] = useState("");
   const [month, setMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -249,6 +251,7 @@ export function AdminApp() {
   const visibleOrders = orders.filter(
     (o) =>
       (!filter || o.status === filter) &&
+      (!dayFilter || o.order_deliveries?.some((d: Row) => d.delivery_date === dayFilter)) &&
       `${o.order_number} ${o.customer_name} ${o.customer_phone}`
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -424,7 +427,25 @@ export function AdminApp() {
                       </option>
                     ))}
                   </select>
+                  <input
+                    type="date"
+                    aria-label="Filtrar dia de entrega"
+                    value={dayFilter}
+                    onChange={(e) => setDayFilter(e.target.value)}
+                  />
                 </div>
+                {dayFilter && (
+                  <div className="production-list">
+                    <h3>Para produzir em {new Date(dayFilter + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</h3>
+                    {productionLines(visibleOrders, dayFilter).map((l) => (
+                      <p key={l.name + l.notes}>
+                        <b>{l.quantity}×</b> {l.name}
+                        {l.notes && <small>{l.notes}</small>}
+                      </p>
+                    ))}
+                    {!productionLines(visibleOrders, dayFilter).length && <p>Nada para produzir nesse dia.</p>}
+                  </div>
+                )}
                 <div className="table-scroll">
                   <table>
                     <thead>
@@ -448,7 +469,11 @@ export function AdminApp() {
                               )}
                             </small>
                           </td>
-                          <td>{o.order_deliveries?.length || 0} dias</td>
+                          <td>
+                            {o.order_deliveries
+                              ?.map((d: Row) => new Date(d.delivery_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }))
+                              .join(", ") || "—"}
+                          </td>
                           <td>
                             <span className={`status-badge status-${o.status}`}>
                               {statuses[o.status]}
