@@ -76,6 +76,31 @@ describe("repeat salad across days", () => {
   });
 });
 
+describe("same salad, different montagem", () => {
+  it("keeps two Salada Fit with different proteins as separate cart lines", async () => {
+    const user = userEvent.setup();
+    render(
+      <Storefront
+        initialData={createDemoStorefrontData(new Date("2026-11-07T12:00:00Z"))}
+        submitOrder={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /segunda.*09/i }));
+    await addSaladFit(user);
+    await user.click(screen.getByRole("button", { name: /adicionar salada fit$/i }));
+    const dialog = screen.getByRole("dialog");
+    for (const name of ["Carne Desfiada", "Tomate Cereja", "Molho de Ervas Fit"])
+      await user.click(within(dialog).getByRole("button", { name }));
+    await user.click(within(dialog).getByRole("button", { name: /adicionar · r\$ 24,90/i }));
+    expect(screen.getByText(/proteína: frango grelhado/i)).toBeVisible();
+    expect(screen.getByText(/proteína: carne desfiada/i)).toBeVisible();
+    expect(document.querySelectorAll(".cart-line")).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: /^remover salada fit$/i }));
+    expect(document.querySelectorAll(".cart-line")).toHaveLength(1);
+    expect(screen.getByText(/proteína: frango grelhado/i)).toBeVisible();
+  });
+});
+
 describe("combos vs open days", () => {
   it("hides a combo that needs more delivery days than are open", () => {
     const data = createDemoStorefrontData(new Date("2026-11-07T12:00:00Z"));

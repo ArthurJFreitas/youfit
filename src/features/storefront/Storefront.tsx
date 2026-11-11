@@ -210,8 +210,7 @@ export function Storefront({
       return;
     }
     const product = data?.products.find((p) => p.id === productId);
-    const onDay = selected?.items.some((i) => i.productId === productId);
-    if (product?.category === "salad" && delta > 0 && !onDay) {
+    if (product?.category === "salad" && delta > 0) {
       setBuilderId(productId);
       return;
     }
@@ -226,17 +225,19 @@ export function Storefront({
       ...prev,
       deliveries: prev.deliveries.map((d) => {
         if (d.deliveryDayId !== activeDay) return d;
-        const existing = d.items.find((i) => i.productId === productId);
+        // same salad with a different montagem is its own line; "−" on the card hits the last line
+        const idx = d.items.findLastIndex(
+          (i) => i.productId === productId && (!notes || i.notes === notes),
+        );
+        const existing = idx >= 0 ? d.items[idx] : undefined;
         const quantity = Math.min(20, (existing?.quantity || 0) + delta);
         return {
           ...d,
           items:
             quantity <= 0
-              ? d.items.filter((i) => i.productId !== productId)
+              ? d.items.filter((_, i) => i !== idx)
               : existing
-                ? d.items.map((i) =>
-                    i.productId === productId ? { ...i, quantity } : i,
-                  )
+                ? d.items.map((i, n) => (n === idx ? { ...i, quantity } : i))
                 : [
                     ...d.items,
                     {
@@ -257,8 +258,7 @@ export function Storefront({
     for (const extra of extras) addItem(extra.productId, extra.quantity);
     setBuilderId("");
   }
-  // shortcut: one customization per cart line, even with quantity > 1; split lines if customers ask.
-  function customizeItem(dayId: string, productId: string, next: Customization) {
+  function customizeItem(dayId: string, index: number, next: Customization) {
     setDraft((prev) => ({
       ...prev,
       deliveries: prev.deliveries.map((d) =>
@@ -266,10 +266,8 @@ export function Storefront({
           ? d
           : {
               ...d,
-              items: d.items.map((i) =>
-                i.productId === productId
-                  ? { ...i, notes: buildNotes(next) }
-                  : i,
+              items: d.items.map((i, n) =>
+                n === index ? { ...i, notes: buildNotes(next) } : i,
               ),
             },
       ),
@@ -795,8 +793,9 @@ export function Storefront({
                         .filter((p) => (p.category === category || category === 'extra' && p.category === 'dressing') && p.active)
                         .map((p, index) => {
                           const qty =
-                            selected?.items.find((i) => i.productId === p.id)
-                              ?.quantity || 0;
+                            selected?.items
+                              .filter((i) => i.productId === p.id)
+                              .reduce((sum, i) => sum + i.quantity, 0) || 0;
                           return (
                             <article
                               className={`product-card product-card--${index % 4}`}
@@ -932,12 +931,12 @@ export function Storefront({
                             Adicione uma salada para esse dia.
                           </p>
                         )}
-                        {delivery.items.map((item) => {
+                        {delivery.items.map((item, index) => {
                           const product = data.products.find(
                             (p) => p.id === item.productId,
                           );
                           return (
-                            <div className="cart-line" key={item.productId}>
+                            <div className="cart-line" key={index}>
                               <span>
                                 <b>{item.quantity}×</b>{" "}
                                 {product?.name || "Item indisponível"}
@@ -955,7 +954,7 @@ export function Storefront({
                                       groups={saladOptions(product.slug).groups}
                                       value={parseCustomization(item.notes)}
                                       onChange={(next) =>
-                                        customizeItem(delivery.deliveryDayId, item.productId, next)
+                                        customizeItem(delivery.deliveryDayId, index, next)
                                       }
                                     />
                                   </details>
