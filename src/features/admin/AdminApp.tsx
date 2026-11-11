@@ -15,6 +15,7 @@ import {
   Salad,
   Settings,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { YouFitLogo } from "@/components/brand/YouFitLogo";
@@ -151,6 +152,19 @@ export function AdminApp() {
     } finally {
       setBusy(false);
     }
+  }
+  async function remove(table: string, row: Row) {
+    if (!window.confirm(`Excluir "${row.name}"? Isso não pode ser desfeito.`)) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    const { error } = await db.from(table).delete().eq("id", row.id);
+    if (error) setError("Não foi possível excluir. Tente novamente.");
+    else {
+      setMessage("Item excluído.");
+      await refresh();
+    }
+    setBusy(false);
   }
   async function updateStatus(order: Row, status: string) {
     setBusy(true);
@@ -582,6 +596,13 @@ export function AdminApp() {
                       onClick={() => save(tab, { id: p.id, active: !p.active })}
                     >
                       {p.active ? "Pausar" : "Ativar"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => remove(tab, p)}
+                    >
+                      <Trash2 size={16} /> Excluir
                     </Button>
                   </div>
                 </div>
