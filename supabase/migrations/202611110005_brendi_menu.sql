@@ -1,5 +1,7 @@
 -- Brendi menu copy: retire the launch catalog and seed Salada Fit, combos, paid add-ons and drinks.
-update public.products set active = false where id::text like '11111111-%';
+-- old slugs are unique and collide with the new menu (e.g. molho-mostarda-mel)
+update public.products set active = false, slug = slug || '-legacy'
+  where id::text like '11111111-%' and slug not like '%-legacy';
 insert into public.products (id, name, slug, category, price_cents, image_path, description, sort_order) values
   ('33333333-3333-4333-8333-333333333301', 'Salada Fit', 'salada-fit', 'salad', 2490, '/images/salada-frango-grelhado.webp', 'Monte sua salada: base mix de folhas, 1 proteína, até 5 acompanhamentos e 1 molho à sua escolha.', 1),
   ('33333333-3333-4333-8333-333333333302', 'Combo Salada Fit + 1 Bebida', 'combo-salada-fit-bebida', 'salad', 2990, '/images/salada-frango-grelhado.webp', 'Sua Salada Fit montada do seu jeito + 1 bebida à sua escolha: água, Coca-Cola, Fanta ou Guaraná Mineiro.', 2),
