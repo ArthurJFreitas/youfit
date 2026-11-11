@@ -602,7 +602,7 @@ export function Storefront({
                       <span>1</span>
                       <div>
                         <h3>Quando você quer receber?</h3>
-                        <p>Selecione um ou mais dias da próxima semana.</p>
+                        <p>Selecione um ou mais dias de entrega.</p>
                       </div>
                     </div>
                     <div className="days-grid">
@@ -640,8 +640,8 @@ export function Storefront({
                     </div>
                     {!data.deliveryDays.length ? (
                       <p className="notice">
-                        Ainda não abrimos as entregas da próxima semana. Volte
-                        em breve!
+                        Nenhum dia de entrega aberto no momento. Volte em
+                        breve!
                       </p>
                     ) : (
                       <p className="delivery-time">

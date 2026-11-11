@@ -30,9 +30,8 @@ export async function getStorefrontData(): Promise<StorefrontData> {
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
   const anchor = new Date(today + "T12:00:00Z");
-  anchor.setUTCDate(anchor.getUTCDate() + (8 - (anchor.getUTCDay() || 7)));
-  const nextMonday = anchor.toISOString().slice(0, 10);
-  anchor.setUTCDate(anchor.getUTCDate() + 7);
+  // lists from today through the end of next week; the cutoff check below keeps same-day orders to 2h before the window
+  anchor.setUTCDate(anchor.getUTCDate() + (15 - (anchor.getUTCDay() || 7)));
   const afterWeek = anchor.toISOString().slice(0, 10);
   return {
     products: (products.data as any[]).map((p) => ({
@@ -61,7 +60,7 @@ export async function getStorefrontData(): Promise<StorefrontData> {
     deliveryDays: (days.data as any[])
       .filter(
         (d) =>
-          d.delivery_date >= nextMonday &&
+          d.delivery_date >= today &&
           d.delivery_date < afterWeek &&
           d.reserved_quantity < d.capacity &&
           new Date(d.cutoff_at || new Date(new Date(`${d.delivery_date}T${d.delivery_window_start}-03:00`).getTime() - s.default_cutoff_hours * 3600000).toISOString()) > new Date(),
