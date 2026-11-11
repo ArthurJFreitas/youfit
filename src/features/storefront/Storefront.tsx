@@ -28,11 +28,11 @@ import { YouFitLogo } from "@/components/brand/YouFitLogo";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import {
-  ADDITIONS,
-  TOPPINGS,
   buildNotes,
+  missingGroups,
   parseCustomization,
-  toggle,
+  saladOptions,
+  type Customization,
 } from "@/features/ordering/customization";
 import { previewOrder } from "@/features/ordering/cart";
 import { formatBRL } from "@/features/ordering/money";
@@ -49,6 +49,7 @@ import type {
 import { createDemoStorefrontData, type StorefrontData } from "@/lib/demo/data";
 import { getStorefrontData } from "@/lib/supabase/catalog-repository";
 import { createOrder } from "@/lib/supabase/order-repository";
+import { OptionGroups, SaladBuilder, type SaladExtra } from "./SaladBuilder";
 
 const weekdays = [
   "domingo",
@@ -87,6 +88,7 @@ export function Storefront({
   const [cutlery, setCutlery] = useState(true);
   const [comboId, setComboId] = useState("");
   const [category, setCategory] = useState("salad");
+  const [builderId, setBuilderId] = useState("");
   const [checkout, setCheckout] = useState(false);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<OrderReceipt>();
@@ -155,6 +157,17 @@ export function Storefront({
       cartWarning = (e as Error).message;
     }
   }
+  const incompleteSalad = deliveries.some((d) =>
+    d.items.some((i) => {
+      const p = data?.products.find((x) => x.id === i.productId);
+      return (
+        p?.category === "salad" &&
+        missingGroups(saladOptions(p.slug).groups, parseCustomization(i.notes)).length > 0
+      );
+    }),
+  );
+  if (preview && incompleteSalad)
+    cartWarning = "Complete a montagem de cada salada: proteína, acompanhamentos e molho.";
   const count = deliveries.reduce(
     (sum, d) => sum + d.items.reduce((s, i) => s + i.quantity, 0),
     0,
@@ -195,6 +208,15 @@ export function Storefront({
       return;
     }
     const product = data?.products.find((p) => p.id === productId);
+    const onDay = selected?.items.some((i) => i.productId === productId);
+    if (product?.category === "salad" && delta > 0 && !onDay) {
+      setBuilderId(productId);
+      return;
+    }
+    addItem(productId, delta);
+  }
+  function addItem(productId: string, delta: number, notes?: string) {
+    const product = data?.products.find((p) => p.id === productId);
     const itemCombo = chosenCombo?.eligibleProductIds.includes(productId)
       ? comboId
       : undefined;
@@ -221,18 +243,20 @@ export function Storefront({
                       ...(product?.category === "salad" && itemCombo
                         ? { comboId: itemCombo }
                         : {}),
+                      ...(notes ? { notes } : {}),
                     },
                   ],
         };
       }),
     }));
   }
+  function buildSalad(notes: string, extras: SaladExtra[]) {
+    addItem(builderId, 1, notes);
+    for (const extra of extras) addItem(extra.productId, extra.quantity);
+    setBuilderId("");
+  }
   // shortcut: one customization per cart line, even with quantity > 1; split lines if customers ask.
-  function customizeItem(
-    dayId: string,
-    productId: string,
-    patch: Partial<ReturnType<typeof parseCustomization>>,
-  ) {
+  function customizeItem(dayId: string, productId: string, next: Customization) {
     setDraft((prev) => ({
       ...prev,
       deliveries: prev.deliveries.map((d) =>
@@ -242,7 +266,7 @@ export function Storefront({
               ...d,
               items: d.items.map((i) =>
                 i.productId === productId
-                  ? { ...i, notes: buildNotes({ ...parseCustomization(i.notes), ...patch }) }
+                  ? { ...i, notes: buildNotes(next) }
                   : i,
               ),
             },
@@ -319,7 +343,7 @@ export function Storefront({
   }
   async function finish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current || !data || !acceptingOrders) return;
+    if (inFlight.current || !data || !acceptingOrders || incompleteSalad) return;
     setError("");
     try {
       const valid = validateOrderDraft({
@@ -919,51 +943,21 @@ export function Storefront({
                                   (product?.priceCents || 0) * item.quantity,
                                 )}
                               </strong>
-                              {product?.category === "salad" && (() => {
-                                const c = parseCustomization(item.notes);
-                                const set = (patch: Partial<typeof c>) =>
-                                  customizeItem(delivery.deliveryDayId, item.productId, patch);
-                                return (
-                                  <div className="customize">
-                                    <details className="toppings">
-                                      <summary>
-                                        Personalizar ingredientes
-                                        {c.without.length || c.with.length
-                                          ? ` (${c.without.length + c.with.length})`
-                                          : ""}
-                                      </summary>
-                                      <p>Desmarque o que você não quer:</p>
-                                      <div className="chips" role="group" aria-label="Ingredientes">
-                                        {TOPPINGS.map((t) => (
-                                          <button
-                                            key={t}
-                                            type="button"
-                                            aria-pressed={!c.without.includes(t)}
-                                            className={c.without.includes(t) ? "" : "active"}
-                                            onClick={() => set({ without: toggle(c.without, t) })}
-                                          >
-                                            {t}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      <p>Adicionais (grátis):</p>
-                                      <div className="chips" role="group" aria-label="Adicionais">
-                                        {ADDITIONS.map((a) => (
-                                          <button
-                                            key={a}
-                                            type="button"
-                                            aria-pressed={c.with.includes(a)}
-                                            className={c.with.includes(a) ? "active" : ""}
-                                            onClick={() => set({ with: toggle(c.with, a) })}
-                                          >
-                                            + {a}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </details>
-                                  </div>
-                                );
-                              })()}
+                              {product?.category === "salad" && (
+                                <div className="customize">
+                                  <details className="toppings">
+                                    <summary>Ver / editar montagem</summary>
+                                    <OptionGroups
+                                      groups={saladOptions(product.slug).groups}
+                                      value={parseCustomization(item.notes)}
+                                      onChange={(next) =>
+                                        customizeItem(delivery.deliveryDayId, item.productId, next)
+                                      }
+                                    />
+                                  </details>
+                                  {item.notes && <small>{item.notes}</small>}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1000,7 +994,7 @@ export function Storefront({
                 {cartWarning && <p className="cart-warning">{cartWarning}</p>}
                 <Button
                   fullWidth
-                  disabled={!preview || !count}
+                  disabled={!preview || !count || !!cartWarning}
                   onClick={() => {
                     setCheckout(true);
                     setTimeout(
@@ -1223,6 +1217,16 @@ export function Storefront({
           © {new Date().getFullYear()} YouFit · Feito com carinho.
         </div>
       </footer>
+      {builderId && data && (
+        <SaladBuilder
+          product={data.products.find((p) => p.id === builderId)!}
+          addOns={data.products.filter(
+            (p) => p.available && ["protein", "extra", "dressing"].includes(p.category),
+          )}
+          onConfirm={buildSalad}
+          onClose={() => setBuilderId("")}
+        />
+      )}
     </>
   );
 }

@@ -25,10 +25,10 @@ describe("createDemoStorefrontData", () => {
 
     expect(data.products.map((product) => product.name)).toEqual(
       expect.arrayContaining([
-        "Frango Mediterrâneo",
-        "Ovo & Milho",
-        "Horta Veggie",
-        "Atum Crocante",
+        "Salada Fit",
+        "Combo Salada Fit + 1 Bebida",
+        "Combo 2 Saladas Fit",
+        "Combo 2 Saladas Fit + Coca-Cola Zero 600ml",
       ]),
     );
     expect(data.combos.map((combo) => combo.minimumDeliveryCount)).toEqual([
