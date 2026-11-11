@@ -159,7 +159,7 @@ export function SaladBuilder({
           </fieldset>
         </div>
         <footer className="modal-footer">
-          {missing.length > 0 && (
+          {missing.length > 0 && Object.values(value).some((v) => v.length) && (
             <p>Falta escolher: {missing.map((g) => g.title.toLowerCase()).join(", ")}.</p>
           )}
           <Button

@@ -1866,9 +1866,46 @@ svg {
     gap: 20px;
   }
 }
+.cart-bar {
+  display: none;
+}
 @media (max-width: 760px) {
   .container {
     width: calc(100% - 36px);
+  }
+  /* iOS zooms into inputs under 16px */
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 16px;
+  }
+  .cart-bar {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px 12px 18px;
+    border-radius: 999px;
+    background: var(--forest);
+    color: #fff;
+    font-size: 14px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(16, 43, 34, 0.35);
+  }
+  .cart-bar-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--forest);
+    font-weight: 600;
   }
   .announcement {
     font-size: 8px;

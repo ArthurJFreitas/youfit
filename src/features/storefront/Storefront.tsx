@@ -92,6 +92,14 @@ export function Storefront({
   const [checkout, setCheckout] = useState(false);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<OrderReceipt>();
+  const [cartInView, setCartInView] = useState(false);
+  useEffect(() => {
+    const el = document.getElementById("pedido");
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setCartInView(e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [data]);
   const [copied, setCopied] = useState(false);
   const [acceptingOrders,setAcceptingOrders]=useState(Boolean(initialData));
   const idempotency = useRef("");
@@ -1025,6 +1033,17 @@ export function Storefront({
               </div>
             </aside>
           </div>
+          {count > 0 && !checkout && !cartInView && (
+            <a className="cart-bar" href="#pedido">
+              <span>
+                <b>{count} {count === 1 ? "item" : "itens"}</b>
+                {preview && ` · ${formatBRL(preview.totalCents)}`}
+              </span>
+              <span className="cart-bar-cta">
+                Ver pedido <ArrowRight size={16} />
+              </span>
+            </a>
+          )}
           {checkout && preview && (
             <section className="container checkout-section" id="checkout">
               <div className="checkout-heading">
