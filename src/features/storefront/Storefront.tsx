@@ -184,7 +184,9 @@ export function Storefront({
     setCheckout(false);
     setError("");
     if (deliveries.some((d) => d.deliveryDayId === id)) {
-      setActiveDay(id);
+      // first click on a chosen day makes it active; clicking the active day again deselects it
+      if (id === activeDay) removeDay(id);
+      else setActiveDay(id);
       return;
     }
     setDraft((prev) => ({
@@ -697,18 +699,18 @@ export function Storefront({
                         <h3>Agora, escolha seu sabor</h3>
                         <p>
                           {activeDay
-                            ? `Montando a entrega de ${dayName(data.deliveryDays.find((d) => d.id === activeDay)?.date || "")}, ${dateLabel(data.deliveryDays.find((d) => d.id === activeDay)?.date || "")}`
+                            ? `Dia ${chosenDays.findIndex((d) => d.deliveryDayId === activeDay) + 1} de ${chosenDays.length} · montando a entrega de ${dayName(data.deliveryDays.find((d) => d.id === activeDay)?.date || "")}, ${dateLabel(data.deliveryDays.find((d) => d.id === activeDay)?.date || "")}`
                             : "Escolha um dia acima para começar seu pedido."}
                         </p>
                       </div>
                     </div>
-                    {deliveries.length > 1 && (
+                    {deliveries.length > 0 && (
                       <div
                         className="menu-tabs day-tabs"
                         role="group"
                         aria-label="Dia da entrega"
                       >
-                        {chosenDays.map((d) => {
+                        {chosenDays.map((d, i) => {
                           const day = data.deliveryDays.find(
                             (x) => x.id === d.deliveryDayId,
                           );
@@ -719,8 +721,10 @@ export function Storefront({
                               aria-pressed={activeDay === d.deliveryDayId}
                               onClick={() => setActiveDay(d.deliveryDayId)}
                             >
+                              <i className="day-step">
+                                {d.items.length ? <Check size={11} /> : i + 1}
+                              </i>
                               {day ? `${dayName(day.date).slice(0, 3)} ${day.date.slice(8, 10)}` : "?"}
-                              {d.items.length ? <Check size={12} /> : null}
                             </button>
                           );
                         })}

@@ -2464,6 +2464,21 @@ a {
 .day-tabs button {
   border-color: #e9e7dc;
 }
+.day-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e9e7dc;
+  color: var(--forest);
+  font-style: normal;
+  font-size: 10px;
+}
+.day-tabs button.active .day-step {
+  background: white;
+}
 .day-tabs .day-tabs-next {
   margin-left: 6px;
   color: var(--forest);

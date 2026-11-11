@@ -31,6 +31,21 @@ describe("customer ordering", () => {
   });
 });
 
+describe("delivery days", () => {
+  it("deselects a chosen day when it is clicked again", async () => {
+    const user = userEvent.setup();
+    const data = createDemoStorefrontData(new Date("2026-11-07T12:00:00Z"));
+    render(<Storefront initialData={data} submitOrder={vi.fn()} />);
+    // the day chip comes before the day stepper in the DOM
+    const monday = () =>
+      screen.getAllByRole("button", { name: /segunda.*09/i })[0];
+    await user.click(monday());
+    expect(monday()).toHaveAttribute("aria-pressed", "true");
+    await user.click(monday());
+    expect(monday()).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
 describe("weekly combos", () => {
   it("pre-selects the combo days and walks them in order with Próximo dia", async () => {
     const user = userEvent.setup();
